@@ -3,6 +3,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import {toNodeHandler, fromNodeHeaders} from "better-auth/node";
 import {auth} from "./utils/auth";
+import db from "./utils/db";
 import cors from "cors"
 
 const app: Application = express();
@@ -16,6 +17,7 @@ app.use(
     })
 );
 
+
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use(helmet());
 app.use(morgan("dev"));
@@ -24,6 +26,16 @@ app.use(express.json());
 app.get("/health", (_req: Request, res: Response) => {
     res.json({status: "ok"});
 });
+
+app.post("/auth/check_email", async (_req: Request, res: Response) => {
+    try {
+        const result = await db.query('SELECT "email" FROM "user" WHERE email = $1', [_req.body.email]);
+        res.json({status: 200, message: "success", data: result.rows});
+    } catch (error: any) {
+        console.log(error);
+        res.json({status: 500, message: error.message, req: _req.body});
+    }
+})
 
 app.get("/api/me", async (req: Request, res: Response) => {
     const session = await auth.api.getSession({
