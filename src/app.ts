@@ -43,18 +43,11 @@ app.get("/api/me", async (req: Request, res: Response) => {
     const session = await auth.api.getSession({
         headers: fromNodeHeaders(req.headers),
     });
-    res.status(200).json(session);
-});
-
-app.get("/api/dashboard", async (req: Request, res: Response) => {
-    const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-    });
     if (!session) {
-        res.status(401).json({error: "Unauthorized"});
+        res.status(401).json({session: null, user: null, error: "Unauthorized"});
         return;
     }
-    res.status(200).json({message: "Welcome to the protected dashboard", user: session.user});
+    res.status(200).json({session: session, user: session.user});
 });
 
 app.use((_req: Request, res: Response) => {
