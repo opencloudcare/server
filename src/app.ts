@@ -5,6 +5,7 @@ import {toNodeHandler, fromNodeHeaders} from "better-auth/node";
 import {auth} from "./utils/auth";
 import db from "./utils/db";
 import cors from "cors"
+import storageBucketRouter from "./routes/storage-bucket"
 
 const app: Application = express();
 
@@ -22,9 +23,10 @@ app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
+app.use("/api/storage", storageBucketRouter);
 
 app.get("/health", (_req: Request, res: Response) => {
-    res.json({status: "ok"});
+    res.status(200).json({status: "ok"});
 });
 
 app.post("/auth/check_email", async (_req: Request, res: Response) => {
@@ -33,7 +35,7 @@ app.post("/auth/check_email", async (_req: Request, res: Response) => {
         res.json({status: 200, message: "success", data: result.rows});
     } catch (error: any) {
         console.log(error);
-        res.json({status: 500, message: error.message, req: _req.body});
+        res.status(500).json({message: error.message, req: _req.body});
     }
 })
 
@@ -41,7 +43,7 @@ app.get("/api/me", async (req: Request, res: Response) => {
     const session = await auth.api.getSession({
         headers: fromNodeHeaders(req.headers),
     });
-    res.json(session);
+    res.status(200).json(session);
 });
 
 app.get("/api/dashboard", async (req: Request, res: Response) => {
@@ -52,7 +54,7 @@ app.get("/api/dashboard", async (req: Request, res: Response) => {
         res.status(401).json({error: "Unauthorized"});
         return;
     }
-    res.json({message: "Welcome to the protected dashboard", user: session.user});
+    res.status(200).json({message: "Welcome to the protected dashboard", user: session.user});
 });
 
 app.use((_req: Request, res: Response) => {
