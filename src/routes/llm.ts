@@ -7,7 +7,7 @@ router.post("/ask", async (req, res) => {
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
   try {
-    const stream = await askModel(req.body.contents)
+    const stream = await askModel(req.body.contents, req.body.searchWeb)
     for await (const chunk of stream){
       res.write(chunk.text ?? "")
     }

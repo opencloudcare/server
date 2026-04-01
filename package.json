@@ -8,6 +8,7 @@
     "@aws-sdk/client-s3": "^3.1019.0",
     "@aws-sdk/s3-request-presigner": "^3.1020.0",
     "@google/genai": "^1.47.0",
+    "@tavily/core": "^0.7.2",
     "better-auth": "^1.5.6",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
