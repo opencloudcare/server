@@ -12,9 +12,14 @@ router.post("/ask", async (req, res) => {
       res.write(chunk.text ?? "")
     }
     res.end()
-  } catch (error) {
+  } catch (error: any) {
     console.error(error)
-    res.end()
+    const status = error?.status === 429 ? 429 : 500
+    if (!res.headersSent) {
+      res.status(status).end()
+    } else {
+      res.end()
+    }
   }
 
 })
