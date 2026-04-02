@@ -6,16 +6,16 @@ import {fromNodeHeaders} from "better-auth/node";
 
 const router = Router();
 
+// Endpoint for communication with the LLM
 router.post("/ask", async (req, res) => {
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
-
 
   const {contents, conversationId} = req.body;
 
   try {
     await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3)", [conversationId, contents[contents.length - 1].role, contents[contents.length - 1].content]);
-    let output = ""
+    let output = "" // buffer for a output stream
     const stream = await askModel(req.body.contents, req.body.searchWeb)
     for await (const chunk of stream) {
       res.write(chunk.text ?? "")
@@ -35,13 +35,13 @@ router.post("/ask", async (req, res) => {
 
 })
 
+// Endpoint for new conversation creation (triggered by new message)
 router.post("/conversations", async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
-  if (!session) {
-    res.status(401).send("No such session");
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
     return;
-  } // no session
-
+  }
   const {conversationId, contents} = req.body;
 
   try {
@@ -50,6 +50,36 @@ router.post("/conversations", async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(500).send("Error creating new conversation");
+  }
+})
+
+// Endpoint to get the messages from a specific conversation
+router.get("/conversations/:id", async (req, res) => {
+  const {id} = req.params;
+
+  try {
+    const data = await db.query("SELECT * FROM message WHERE conversation_id = $1 ORDER BY created_at", [id]);
+    res.status(200).send({data: data.rows});
+  } catch (error) {
+    console.error(error)
+    res.status(500).send("Error getting conversation messages");
+  }
+
+})
+
+// Endpoint to get all the users conversations
+router.get("/conversations", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
+    return;
+  }
+  try {
+    const data = await db.query("SELECT id, title FROM conversation WHERE user_id = $1", [session.user.id]);
+    res.status(200).send({data: data.rows});
+  } catch (error) {
+    console.error(error)
+    res.status(500).send("Error getting conversations");
   }
 })
 
