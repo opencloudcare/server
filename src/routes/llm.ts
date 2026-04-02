@@ -11,6 +11,11 @@ router.post("/ask", async (req, res) => {
   res.setHeader("content-type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
 
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
+    return;
+  }
   const {contents, conversationId} = req.body;
 
   try {
@@ -37,7 +42,13 @@ router.post("/ask", async (req, res) => {
 
 // Endpoint for initial conversation title
 router.post("/get-chat-title", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
+    return;
+  }
   const {contents} = req.body;
+
   try {
     const response = await generateConversationTitle(contents);
     res.status(200).send(response.text);
@@ -54,7 +65,7 @@ router.post("/conversations", async (req, res) => {
     res.status(401).send("User not authenticated");
     return;
   }
-  const {conversationId, contents} = req.body;
+  const {conversationId} = req.body;
 
   try {
     await db.query("INSERT INTO conversation (id, user_id, title) VALUES ($1, $2, $3)", [conversationId, session.user.id, "New Chat"]);
@@ -67,10 +78,15 @@ router.post("/conversations", async (req, res) => {
 
 // Endpoint to get the messages from a specific conversation
 router.get("/conversations/:id", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
+    return;
+  }
   const {id} = req.params;
 
   try {
-    const data = await db.query("SELECT * FROM message WHERE conversation_id = $1 ORDER BY created_at", [id]);
+    const data = await db.query("SELECT * FROM message JOIN public.conversation c on c.id = message.conversation_id WHERE message.conversation_id = $1 AND c.user_id = $2 ORDER BY message.created_at", [id, session.user.id]);
     res.status(200).send({data: data.rows});
   } catch (error) {
     console.error(error)
@@ -79,7 +95,14 @@ router.get("/conversations/:id", async (req, res) => {
 
 })
 
+// Endpoint to save the new generated title to conversation
 router.post("/conversations/:id/title", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
+  if (!session) { // no session
+    res.status(401).send("User not authenticated");
+    return;
+  }
+
   try {
     await db.query("UPDATE conversation SET title = $1 WHERE id = $2", [req.body.title, req.params.id])
     res.status(200).send("ok");
@@ -96,6 +119,7 @@ router.get("/conversations", async (req, res) => {
     res.status(401).send("User not authenticated");
     return;
   }
+
   try {
     const data = await db.query("SELECT id, title FROM conversation WHERE user_id = $1", [session.user.id]);
     res.status(200).send({data: data.rows});
