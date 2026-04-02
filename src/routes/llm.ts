@@ -1,5 +1,5 @@
 import {Router} from "express";
-import {askModel} from "../services/llm";
+import {askModel, generateConversationTitle} from "../services/llm";
 import db from "../utils/db";
 import {auth} from "../utils/auth";
 import {fromNodeHeaders} from "better-auth/node";
@@ -35,6 +35,18 @@ router.post("/ask", async (req, res) => {
 
 })
 
+// Endpoint for initial conversation title
+router.post("/get-chat-title", async (req, res) => {
+  const {contents} = req.body;
+  try {
+    const response = await generateConversationTitle(contents);
+    res.status(200).send(response.text);
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({error: error})
+  }
+})
+
 // Endpoint for new conversation creation (triggered by new message)
 router.post("/conversations", async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
@@ -45,7 +57,7 @@ router.post("/conversations", async (req, res) => {
   const {conversationId, contents} = req.body;
 
   try {
-    await db.query("INSERT INTO conversation (id, user_id, title) VALUES ($1, $2, $3)", [conversationId, session.user.id, contents[contents.length - 1].content]);
+    await db.query("INSERT INTO conversation (id, user_id, title) VALUES ($1, $2, $3)", [conversationId, session.user.id, "New Chat"]);
     res.status(201).send("ok");
   } catch (error) {
     console.error(error)
@@ -65,6 +77,16 @@ router.get("/conversations/:id", async (req, res) => {
     res.status(500).send("Error getting conversation messages");
   }
 
+})
+
+router.post("/conversations/:id/title", async (req, res) => {
+  try {
+    await db.query("UPDATE conversation SET title = $1 WHERE id = $2", [req.body.title, req.params.id])
+    res.status(200).send("ok");
+  } catch (error) {
+    console.error(error)
+    res.status(500).send("Error updating conversation title");
+  }
 })
 
 // Endpoint to get all the users conversations

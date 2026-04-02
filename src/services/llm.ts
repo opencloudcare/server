@@ -37,3 +37,18 @@ export const askModel = async (contents: any, searchWeb=false) => {
     }))],
   });
 }
+
+export const generateConversationTitle = async (contents: any) => {
+  const systemTurn = {role: "user", parts: [{text: "Your are tasked to extract a meaning of the prompted message and make a title that summarizes the potential topic the conversation is going to take place. Only respond with a title. The title should be maximum of 8 words."}]};
+
+  return await ai.models.generateContent({
+    model: "gemma-3-27b-it",
+    contents: [systemTurn, ...contents.map((m: any) => ({
+      role: m.role,
+      parts: [
+        {text: m.content},
+      ]
+    }))],
+  });
+
+}
