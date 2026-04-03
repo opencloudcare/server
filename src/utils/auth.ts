@@ -3,6 +3,18 @@ import { Pool } from "pg";
 
 export const auth = betterAuth({
     trustedOrigins: ["http://localhost:5173"],
+    user: {
+        additionalFields: {
+            firstName: {
+                type: "string",
+                required: true,
+            },
+            lastName: {
+                type: "string",
+                required: true,
+            },
+        },
+    },
     emailAndPassword: {
         enabled: true,
     },

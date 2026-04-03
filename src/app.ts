@@ -7,6 +7,7 @@ import db from "./utils/db";
 import cors from "cors"
 import storageBucketRouter from "./routes/storage-bucket"
 import llmRouter from "./routes/llm"
+import userRouter from "./routes/user"
 
 const app: Application = express();
 
@@ -26,6 +27,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use("/api/storage", storageBucketRouter);
 app.use("/api/ai", llmRouter)
+app.use("/api/user", userRouter)
 
 app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({status: "ok"});
