@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
+import db from "./db";
 
 export const auth = betterAuth({
     trustedOrigins: ["http://localhost:5173"],
@@ -14,6 +15,16 @@ export const auth = betterAuth({
                 required: true,
             },
         },
+        deleteUser: {
+            enabled: true,
+            beforeDelete: async (user) => {
+                await db.query("DELETE FROM conversation WHERE user_id = $1", [user.id])
+                // TODO: when you have user preference table delete that as well here
+            },
+            afterDelete: async (user) => {
+                console.log(`User ${user.email} deleted successfully -> ID: ${user.id}`);
+            }
+        }
     },
     emailAndPassword: {
         enabled: true,
