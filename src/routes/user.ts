@@ -15,6 +15,11 @@ router.post("/update/email", async (req, res) => {
   }
 
   try {
+    const response = await db.query('SELECT "providerId" FROM account WHERE "userId" = $1', [session.user.id])
+    if (response.rows[0] !== "credential"){
+      res.status(403).send("Cannot change email connected to OAuth")
+      return
+    }
     await updateEmail(session.user.email, req.body.email)
     res.status(200).send("ok")
 

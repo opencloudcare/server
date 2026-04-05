@@ -30,6 +30,14 @@ export const auth = betterAuth({
         enabled: true,
     },
     socialProviders: {
+        google: {
+            clientId: process.env.GOOGLE_CLIENT_ID as string,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+            mapProfileToUser: (profile) => ({
+                firstName: profile.given_name,
+                lastName: profile.family_name,
+            }),
+        },
         github: {
             clientId: process.env.GITHUB_CLIENT_ID as string,
             clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
