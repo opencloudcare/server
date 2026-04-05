@@ -24,7 +24,7 @@ router.post("/ask", async (req, res) => {
     const stream = await askModel(req.body.contents, req.body.searchWeb)
     for await (const chunk of stream) {
       res.write(chunk.text ?? "")
-      output += chunk.text
+      output += chunk.text ?? ""
     }
     await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3)", [conversationId, "model", output]);
     res.end()
