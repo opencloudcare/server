@@ -14,7 +14,7 @@ const app: Application = express();
 // CORS must be before everything, including the better-auth handler
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:4173"],
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         credentials: true,
     })

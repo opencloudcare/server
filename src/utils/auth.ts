@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import db from "./db";
 
 export const auth = betterAuth({
-    trustedOrigins: ["http://localhost:5173"],
+    trustedOrigins: ["http://localhost:5173", "http://localhost:4173"],
     user: {
         additionalFields: {
             firstName: {
