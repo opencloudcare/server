@@ -7,13 +7,14 @@ import db from "./utils/db";
 import cors from "cors"
 import storageBucketRouter from "./routes/storage-bucket"
 import llmRouter from "./routes/llm"
+import userRouter from "./routes/user"
 
 const app: Application = express();
 
 // CORS must be before everything, including the better-auth handler
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:4173"],
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         credentials: true,
     })
@@ -26,6 +27,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use("/api/storage", storageBucketRouter);
 app.use("/api/ai", llmRouter)
+app.use("/api/user", userRouter)
 
 app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({status: "ok"});
