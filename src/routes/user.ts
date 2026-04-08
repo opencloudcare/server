@@ -16,7 +16,8 @@ router.post("/update/email", async (req, res) => {
 
   try {
     const response = await db.query('SELECT "providerId" FROM account WHERE "userId" = $1', [session.user.id])
-    if (response.rows[0] !== "credential"){
+    const onlyCredential = response.rows.length === 1 && response.rows[0].providerId === "credential"
+    if (!onlyCredential) {
       res.status(403).send("Cannot change email connected to OAuth")
       return
     }
@@ -36,7 +37,18 @@ router.delete("/conversations/all", async (req, res) => {
     return
   }
   const result = await db.query("DELETE FROM conversation WHERE user_id = $1", [session.user.id])
-  res.status(200).json({ deleted: result.rowCount })
+  res.status(200).json({deleted: result.rowCount})
+})
+
+router.get("/connections/:id", async (req, res) => {
+  try {
+    const result = await db.query('SELECT "providerId" FROM account WHERE "userId" = $1', [req.params.id])
+    res.status(200).json({data: result.rows})
+
+  } catch (error) {
+    console.log(error instanceof Error ? error.message : "Internal Server Error")
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
 })
 
 
