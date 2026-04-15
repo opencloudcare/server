@@ -16,6 +16,8 @@ dist-ssr
 
 # Environmet variables
 .env
+package-lock.json
+bun.lock
 
 # Migrations
 better-auth_migrations
