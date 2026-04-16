@@ -12,10 +12,10 @@ const s3 = new S3Client({
 });
 
 
-export const listFiles = async (bucket: string, prefix?: string) => {
+export const listFiles = async (userId: string) => {
   const command = new ListObjectsV2Command({
-    Bucket: bucket,
-    Prefix: prefix, // filter by folder
+    Bucket: process.env.S3_BUCKET_NAME,
+    Prefix: userId, // filter by folder
   });
 
   const response = await s3.send(command);
@@ -23,12 +23,21 @@ export const listFiles = async (bucket: string, prefix?: string) => {
 
 }
 
-export const getFiles = async (bucket: string, key: string, expiresIn = 3600) => {
-  const command = new GetObjectCommand({Bucket: bucket, Key: key})
+export const getFiles = async (key: string, expiresIn = 3600) => {
+  const command = new GetObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
   return getSignedUrl(s3 as any, command, {expiresIn});
 }
 
-export const getUploadUrl = async (bucket: string, key: string, expiresIn = 3600) => {
-  const command = new PutObjectCommand({Bucket: bucket, Key: key})
+export const getUploadUrl = async (key: string, expiresIn = 3600) => {
+  const command = new PutObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
   return getSignedUrl(s3 as any, command, {expiresIn});
+}
+
+export const createS3FolderForUser = async (userId: string) => {
+  const key = `/${userId}/`
+  const command = new PutObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
+  const response = await s3.send(command)
+  console.log("RESPONSE: ", response)
+  return response;
+
 }

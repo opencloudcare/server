@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import db from "./db";
+import {createS3FolderForUser} from "../services/storage-bucket";
 
 export const auth = betterAuth({
     trustedOrigins: ["http://localhost:5173", "http://localhost:4173"],
@@ -23,6 +24,16 @@ export const auth = betterAuth({
             },
             afterDelete: async (user) => {
                 console.log(`User ${user.email} deleted successfully -> ID: ${user.id}`);
+            }
+        }
+    },
+    databaseHooks: {
+        user:{
+            create: {
+                after: async (user) => {
+                    // Create S3 folder for the newly created user
+                    await createS3FolderForUser(user.id);
+                },
             }
         }
     },
