@@ -16,12 +16,12 @@ router.post("/ask", async (req, res) => {
     res.status(401).send("User not authenticated");
     return;
   }
-  const {contents, conversationId} = req.body;
+  const {contents, model = "gemma-3-27b-it", conversationId} = req.body;
 
   try {
     await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3)", [conversationId, contents[contents.length - 1].role, contents[contents.length - 1].content]);
     let output = "" // buffer for a output stream
-    const stream = await askModel(req.body.contents, req.body.searchWeb)
+    const stream = await askModel(req.body.contents, model, req.body.searchWeb)
     for await (const chunk of stream) {
       res.write(chunk.text ?? "")
       output += chunk.text ?? ""
