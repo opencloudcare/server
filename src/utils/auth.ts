@@ -33,6 +33,7 @@ export const auth = betterAuth({
                 after: async (user) => {
                     // Create S3 folder for the newly created user
                     await createS3FolderForUser(user.id);
+                    await db.query("INSERT INTO user_preferences (user_id) VALUES ($1)", [user.id])
                 },
             }
         }

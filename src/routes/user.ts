@@ -30,6 +30,42 @@ router.post("/update/email", async (req, res) => {
   }
 })
 
+router.get("/ai_preferences", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  try {
+    const result = await db.query('SELECT ai_model, enable_web_search_default, detailed_responses FROM user_preferences WHERE user_id = $1 LIMIT 1', [session.user.id])
+    res.status(200).json({data: result.rows[0]})
+
+  } catch (error) {
+    console.error(error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
+router.post("/ai_preferences", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {ai_model, enable_web_search_default, detailed_responses} = req.body
+  try {
+    const response = await db.query(
+      `UPDATE user_preferences SET ai_model = $1, enable_web_search_default = $2, detailed_responses = $3 WHERE user_id = $4 RETURNING ai_model, enable_web_search_default, detailed_responses`,
+      [ai_model, enable_web_search_default, detailed_responses, session.user.id]
+    )
+    res.status(200).json({data: response.rows[0]})
+
+  } catch (error) {
+    console.error(error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
 router.delete("/conversations/all", async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
   if (!session) {
@@ -41,6 +77,11 @@ router.delete("/conversations/all", async (req, res) => {
 })
 
 router.get("/connections/:id", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
   try {
     const result = await db.query('SELECT "providerId" FROM account WHERE "userId" = $1', [req.params.id])
     res.status(200).json({data: result.rows})
