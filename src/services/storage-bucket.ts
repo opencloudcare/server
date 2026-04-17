@@ -15,7 +15,7 @@ const s3 = new S3Client({
 export const listFiles = async (userId: string) => {
   const command = new ListObjectsV2Command({
     Bucket: process.env.S3_BUCKET_NAME,
-    Prefix: userId, // filter by folder
+    Prefix: `${userId}/documents`, // filter by folder
   });
 
   const response = await s3.send(command);
@@ -34,10 +34,17 @@ export const getUploadUrl = async (key: string, expiresIn = 3600) => {
 }
 
 export const createS3FolderForUser = async (userId: string) => {
-  const key = `/${userId}/`
-  const command = new PutObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
-  const response = await s3.send(command)
-  console.log("RESPONSE: ", response)
-  return response;
+  const keys = [
+    `/${userId}/metadata/`, // create the user folder + metadata (profile picture, etc.)
+    `/${userId}/documents/`, // create a folder for user documents
+  ]
+  const responses = []
+  for (const key of keys) {
+    const command = new PutObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
+    const response = await s3.send(command)
+    responses.push(response)
+  }
+  console.log("Responses: ", responses)
+  return responses
 
 }
