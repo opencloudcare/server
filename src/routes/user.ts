@@ -1,7 +1,7 @@
 import {Router} from "express";
 import {auth} from "../utils/auth";
 import {fromNodeHeaders} from "better-auth/node";
-import {updateEmail} from "../services/user-actions";
+import {getHiddenData, saveHiddenData, updateEmail} from "../services/user-actions";
 import db from "../utils/db";
 
 
@@ -100,8 +100,9 @@ router.get("/hidden-data", async (req, res) => {
     return
   }
   try {
-    const result = await db.query('SELECT data FROM hidden_data WHERE user_id = $1', [session.user.id])
-    res.status(200).json({data: result.rows[0]})
+    const result = await getHiddenData(session.user.id)
+    console.log("HIDDEN DATA: ", result)
+    res.status(200).json({data: result})
   } catch (error) {
     console.error(error)
     res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
@@ -117,7 +118,7 @@ router.post("/hidden-data", async (req, res) => {
   }
   const {data} = req.body
   try {
-    const result = await db.query('UPDATE hidden_data SET data = $1 WHERE user_id = $2', [data, session.user.id])
+    const result = await saveHiddenData(session.user.id, data)
     res.status(200).json({data: result.rows[0]})
   } catch (error) {
     console.error(error)
