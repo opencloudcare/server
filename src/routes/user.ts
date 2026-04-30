@@ -101,7 +101,6 @@ router.get("/hidden-data", async (req, res) => {
   }
   try {
     const result = await getHiddenData(session.user.id)
-    console.log("HIDDEN DATA: ", result)
     res.status(200).json({data: result})
   } catch (error) {
     console.error(error)
