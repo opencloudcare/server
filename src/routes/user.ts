@@ -93,4 +93,37 @@ router.get("/connections/:id", async (req, res) => {
 })
 
 
+router.get("/hidden-data", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  try {
+    const result = await db.query('SELECT data FROM hidden_data WHERE user_id = $1', [session.user.id])
+    res.status(200).json({data: result.rows[0]})
+  } catch (error) {
+    console.error(error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
+
+router.post("/hidden-data", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {data} = req.body
+  try {
+    const result = await db.query('UPDATE hidden_data SET data = $1 WHERE user_id = $2', [data, session.user.id])
+    res.status(200).json({data: result.rows[0]})
+  } catch (error) {
+    console.error(error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
+
 export default router;
