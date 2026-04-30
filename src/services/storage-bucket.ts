@@ -1,5 +1,6 @@
 import {GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner"
+import axios from "axios";
 
 const s3 = new S3Client({
   endpoint: process.env.S3_URL,      // MinIO endpoint
@@ -44,7 +45,14 @@ export const createS3FolderForUser = async (userId: string) => {
     const response = await s3.send(command)
     responses.push(response)
   }
-  console.log("Responses: ", responses)
   return responses
+}
 
+// redact file
+export const redactFile = async (type: string, file: Buffer) : Promise<Buffer> => {
+  const res = await axios.post("http://localhost:5000/api/redact", file, {
+    headers: {"Content-Type": type},
+    responseType: "arraybuffer",
+  })
+  return Buffer.from(res.data)
 }
