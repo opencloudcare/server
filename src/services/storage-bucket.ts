@@ -49,9 +49,12 @@ export const createS3FolderForUser = async (userId: string) => {
 }
 
 // redact file
-export const redactFile = async (type: string, file: Buffer) : Promise<Buffer> => {
-  const res = await axios.post("http://localhost:5000/api/redact", file, {
-    headers: {"Content-Type": type},
+export const redactFile = async (type: string, file: Buffer, searchTerms: string[]) : Promise<Buffer> => {
+  const form = new FormData()
+  form.append("file", new Blob([new Uint8Array(file)], { type }), "upload")
+  form.append("search_terms", JSON.stringify(searchTerms))
+
+  const res = await axios.post("http://localhost:5000/api/redact", form, {
     responseType: "arraybuffer",
   })
   return Buffer.from(res.data)

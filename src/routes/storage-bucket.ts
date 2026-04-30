@@ -1,10 +1,19 @@
 import express, {Router} from "express";
 import {getFiles, getUploadUrl, listFiles, redactFile} from "../services/storage-bucket";
 import axios from "axios";
+import {getHiddenData} from "../services/user-actions";
+import {auth} from "../utils/auth";
+import {fromNodeHeaders} from "better-auth/node";
 
 const router = Router();
 
 router.put("/upload", express.raw({type: ['application/pdf', 'image/*'], limit: '10mb'}), async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+
   const {key} = req.query;
   const file = req.body;
   const type = req.headers['content-type']
@@ -13,7 +22,8 @@ router.put("/upload", express.raw({type: ['application/pdf', 'image/*'], limit: 
 
   try {
     const url = await getUploadUrl(key as string);
-    const redactedFile = await redactFile(type, file)
+    const search_terms = await getHiddenData(session.user.id);
+    const redactedFile = await redactFile(type, file, search_terms)
     if (!url) return res.status(500).json({message: "upload failure"})
     await axios.put(url, redactedFile, {headers: {'Content-Type': type}}) // upload into the bucket
     res.status(200).json({message: "Upload successful"})
