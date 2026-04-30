@@ -1,4 +1,10 @@
-import {GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client
+} from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner"
 import axios from "axios";
 
@@ -46,6 +52,11 @@ export const createS3FolderForUser = async (userId: string) => {
     responses.push(response)
   }
   return responses
+}
+
+export const deleteFile = async (key: string) => {
+  const command = new DeleteObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
+  return await s3.send(command);
 }
 
 // redact file
