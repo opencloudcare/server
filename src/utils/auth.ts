@@ -20,7 +20,8 @@ export const auth = betterAuth({
             enabled: true,
             beforeDelete: async (user) => {
                 await db.query("DELETE FROM conversation WHERE user_id = $1", [user.id])
-                // TODO: when you have user preference table delete that as well here
+                await db.query("DELETE FROM hidden_data WHERE user_id = $1", [user.id])
+                await db.query("DELETE FROM user_preferences WHERE user_id = $1", [user.id])
             },
             afterDelete: async (user) => {
                 console.log(`User ${user.email} deleted successfully -> ID: ${user.id}`);
