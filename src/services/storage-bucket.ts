@@ -1,6 +1,6 @@
 import {
   DeleteObjectCommand,
-  GetObjectCommand,
+  GetObjectCommand, HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client
@@ -52,6 +52,17 @@ export const createS3FolderForUser = async (userId: string) => {
     responses.push(response)
   }
   return responses
+}
+
+// Check if the object with the same name already exists on the same path
+export const checkForExistingFile = async (key: any) : Promise<boolean> => {
+  try {
+    await s3.send(new HeadObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key}))
+    return true
+  } catch (err: any) { // file not found
+    if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) return false
+    throw err // throw an error if the error is different to not found error
+  }
 }
 
 export const deleteFile = async (key: string) => {

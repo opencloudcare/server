@@ -1,5 +1,12 @@
 import express, {Router} from "express";
-import {deleteFile, getFiles, getUploadUrl, listFiles, redactFile} from "../services/storage-bucket";
+import {
+  checkForExistingFile,
+  deleteFile,
+  getFiles,
+  getUploadUrl,
+  listFiles,
+  redactFile
+} from "../services/storage-bucket";
 import axios from "axios";
 import {getHiddenData} from "../services/user-actions";
 import {auth} from "../utils/auth";
@@ -29,7 +36,8 @@ router.put("/upload", express.raw({
     return
   }
 
-  const {key} = req.query;
+  const parameters = req.query;
+  let key = parameters.key as string;
   const file = req.body;
   const type = req.headers['content-type']
 
@@ -37,6 +45,27 @@ router.put("/upload", express.raw({
     res.status(400).send("Key and file are required")
     console.error("Missing parameters")
     return
+  }
+  // check if the file with the same name already exist
+  let existingFile = await checkForExistingFile(key);
+  if (existingFile) {
+    let i = 1;
+
+    // 1. Split the path from the filename
+    const lastSlashIndex = key.lastIndexOf("/");
+    const path = key.slice(0, lastSlashIndex + 1);
+    const fileName = key.slice(lastSlashIndex + 1);
+
+    // 2. Split the filename into name and extension safely
+    const lastDotIndex = fileName.lastIndexOf(".");
+    const baseName = lastDotIndex === -1 ? fileName : fileName.slice(0, lastDotIndex);
+    const ext = lastDotIndex === -1 ? "" : fileName.slice(lastDotIndex);
+
+    // 3. Loop until a unique key is found
+    do {
+      key = `${path}${baseName}(${i})${ext}`;
+      i++;
+    } while (await checkForExistingFile(key))
   }
 
   try {
