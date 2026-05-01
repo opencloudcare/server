@@ -7,7 +7,21 @@ import {fromNodeHeaders} from "better-auth/node";
 
 const router = Router();
 
-router.put("/upload", express.raw({type: ['application/pdf', 'image/*'], limit: '50mb'}), async (req, res) => {
+router.put("/upload", express.raw({
+  type: [
+    'application/pdf',
+    'image/*',
+    'application/oxps',
+    'application/vnd.ms-xpsdocument',
+    'application/epub+zip',
+    'application/x-mobipocket-ebook',
+    'application/x-fictionbook+xml',
+    'application/x-cbz',
+    'application/zip',
+    'text/plain',
+  ],
+  limit: '50mb'
+}), async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
   if (!session) {
     res.status(401).send("User not authenticated")
