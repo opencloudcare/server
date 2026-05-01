@@ -65,8 +65,8 @@ export const redactFile = async (type: string, file: Buffer, searchTerms: string
   form.append("file", new Blob([new Uint8Array(file)], { type }), "upload")
   form.append("search_terms", JSON.stringify(searchTerms))
 
-  const res = await axios.post("http://localhost:5000/api/redact", form, {
-    responseType: "arraybuffer",
+  const res = await axios.post(`${process.env.EXTERNAL_SERVER_URL}/api/redact`, form, {
+    responseType: "arraybuffer", headers: { 'X-API-Key' : process.env.EXTERNAL_SERVER_KEY},
   })
   return Buffer.from(res.data)
 }
