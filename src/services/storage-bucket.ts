@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand, HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -68,6 +69,43 @@ export const checkForExistingFile = async (key: any) : Promise<boolean> => {
 export const deleteFile = async (key: string) => {
   const command = new DeleteObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
   return await s3.send(command);
+}
+
+export const deleteUserFolder = async (userId: string) => {
+  let continuationToken: string | undefined;
+  let page = 0;
+
+  console.log(`[deleteUserFolder] Starting deletion for userId=${userId}, bucket=${process.env.S3_BUCKET_NAME}`);
+
+  do {
+    page++;
+    const listResult = await s3.send(
+      new ListObjectsV2Command({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Prefix: userId,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    const Contents = listResult.Contents ?? [];
+    console.log(`[deleteUserFolder] Page ${page}: found ${Contents.length} objects`);
+    Contents.forEach(obj => console.log(`[deleteUserFolder]   key="${obj.Key}"`));
+
+    if (Contents.length > 0) {
+      const deleteResult = await s3.send(new DeleteObjectsCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Delete: { Objects: Contents.map(({ Key }) => ({ Key })) },
+      }));
+      console.log(`[deleteUserFolder] Page ${page}: deleted ${deleteResult.Deleted?.length ?? 0} objects`);
+      if (deleteResult.Errors?.length) {
+        console.error(`[deleteUserFolder] Page ${page}: errors:`, deleteResult.Errors);
+      }
+    }
+
+    continuationToken = listResult.NextContinuationToken;
+  } while (continuationToken);
+
+  console.log(`[deleteUserFolder] Done. Processed ${page} page(s).`);
 }
 
 // redact file
