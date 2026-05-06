@@ -92,7 +92,7 @@ export const generateConversationTitle = async (contents: any) => {
   };
 
   return await ai.models.generateContent({
-    model: "gemma-3-27b-it",
+    model: "gemma-4-31b-it",
     contents: [systemTurn, ...contents.map((m: any) => ({
       role: m.role,
       parts: [
