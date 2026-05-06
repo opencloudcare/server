@@ -36,7 +36,10 @@ router.post("/ask", async (req, res) => {
   }
 
   try {
-    await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3)", [conversationId, contents[contents.length - 1].role, contents[contents.length - 1].content]);
+    const response = await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3) RETURNING id", [conversationId, contents[contents.length - 1].role, contents[contents.length - 1].content]);
+    for (const file of files) {
+      await db.query("INSERT INTO message_file (message_id, file_key, file_name, file_type) VALUES ($1, $2, $3, $4)", [response.rows[0].id, file.fullKey, file.name, file.fileType])
+    }
     let output = "" // buffer for an output stream
     const stream = await askModel(req.body.contents, model, req.body.searchWeb, fileList)
     for await (const chunk of stream) {
@@ -103,7 +106,21 @@ router.get("/conversations/:id", async (req, res) => {
   const {id} = req.params;
 
   try {
-    const data = await db.query("SELECT * FROM message JOIN public.conversation c on c.id = message.conversation_id WHERE message.conversation_id = $1 AND c.user_id = $2 ORDER BY message.created_at", [id, session.user.id]);
+    const data = await db.query(`SELECT m.id,
+                                        m.role,
+                                        m.content,
+                                        m.created_at,
+                                        json_agg(
+                                        json_build_object('fullKey', mf.file_key, 'name', mf.file_name,
+                                                          'fileType', mf.file_type)
+                                                ) FILTER ( WHERE mf.file_key IS NOT NULL) AS files
+                                 FROM message AS m
+                                          JOIN conversation AS c ON c.id = m.conversation_id
+                                          LEFT JOIN message_file AS mf ON mf.message_id = m.id
+                                 WHERE m.conversation_id = $1
+                                   AND c.user_id = $2
+                                 GROUP BY m.id, m.role, m.content, m.created_at
+                                 ORDER BY m.created_at`, [id, session.user.id]);
     res.status(200).send({data: data.rows});
   } catch (error) {
     console.error(error)
