@@ -31,6 +31,12 @@ export const listFiles = async (userId: string) => {
 
 }
 
+export const getRawFile = async (key: string) => {
+  const response = await s3.send(new GetObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key}))
+  const bytes = await response.Body?.transformToByteArray()
+  return Buffer.from(bytes!)
+}
+
 export const getFiles = async (key: string, expiresIn = 3600) => {
   const command = new GetObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
   return getSignedUrl(s3 as any, command, {expiresIn});

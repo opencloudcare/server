@@ -3,6 +3,8 @@ import {askModel, generateConversationTitle} from "../services/llm";
 import db from "../utils/db";
 import {auth} from "../utils/auth";
 import {fromNodeHeaders} from "better-auth/node";
+import {getRawFile} from "../services/storage-bucket";
+import {lookup} from "mime-types";
 
 const router = Router();
 
@@ -16,12 +18,27 @@ router.post("/ask", async (req, res) => {
     res.status(401).send("User not authenticated");
     return;
   }
-  const {contents, model = "gemma-3-27b-it", conversationId} = req.body;
+  const {contents, model = "gemma-4-31b-it", conversationId, files} = req.body;
+  const fileList: {mimeType: string, data: string}[] = []
+
+  try {
+    for (const file of files) {
+      const bytes = await getRawFile(file.fullKey)
+      fileList.push({
+        mimeType: lookup(file.name) || 'application/octet-stream', // lookup returns a mimetype depending on the file extension
+        data: bytes.toString('base64')
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({error: "Problem sending the file"});
+    return;
+  }
 
   try {
     await db.query("INSERT INTO message (conversation_id, role, content) VALUES ($1, $2, $3)", [conversationId, contents[contents.length - 1].role, contents[contents.length - 1].content]);
-    let output = "" // buffer for a output stream
-    const stream = await askModel(req.body.contents, model, req.body.searchWeb)
+    let output = "" // buffer for an output stream
+    const stream = await askModel(req.body.contents, model, req.body.searchWeb, fileList)
     for await (const chunk of stream) {
       res.write(chunk.text ?? "")
       output += chunk.text ?? ""
