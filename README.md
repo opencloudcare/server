@@ -15,20 +15,58 @@ Express 5 API server. Handles auth, AI conversations, file storage, and DB queri
 
 ## API Endpoints
 
+### Global
+
 | Method | Path | Description |
 |---|---|---|
-| `*` | `/api/auth/**` | Better Auth handlers (login, signup, OAuth, session) |
-| `GET` | `/api/me` | Current user session |
-| `GET` | `/api/user/stats` | `{ conversationCount, messageCount, memberSince }` |
-| `GET/POST` | `/api/user/health-profile` | Patient health profile (upsert) |
-| `GET` | `/api/ai/conversations` | List conversations `{ id, title, updated_at }` |
-| `GET` | `/api/ai/conversations/:id` | Conversation with all messages |
-| `POST` | `/api/ai/conversations` | Create conversation + stream AI reply |
-| `POST` | `/api/ai/conversations/:id/messages` | Send message, stream AI reply |
-| `DELETE` | `/api/ai/conversations/:id` | Delete conversation |
-| `GET` | `/api/storage/upload-url` | Pre-signed MinIO upload URL |
-| `GET` | `/api/storage/file/:key` | Pre-signed download URL |
-| `GET` | `/api/db-schema` | Live PostgreSQL schema for ER diagram |
+| `ALL` | `/api/auth/**` | Better Auth handlers (login, signup, OAuth callback, session, sign-out) |
+| `GET` | `/health` | Server liveness check — returns `{ status: "ok" }` |
+| `POST` | `/auth/check_email` | Returns existing user rows for a given email (used by sign-in flow) |
+| `GET` | `/api/me` | Returns the current session and user object |
+
+### `/api/user`
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/user/update/email` | Update the authenticated user's email (credential accounts only) |
+| `GET` | `/api/user/ai_preferences` | Get AI preferences `{ ai_model, enable_web_search_default, detailed_responses }` |
+| `POST` | `/api/user/ai_preferences` | Update AI preferences |
+| `DELETE` | `/api/user/conversations/all` | Delete all conversations for the current user |
+| `GET` | `/api/user/connections/:id` | List OAuth providers linked to a user account |
+| `GET` | `/api/user/hidden-data` | Get decrypted redaction terms list |
+| `POST` | `/api/user/hidden-data` | Encrypt and save redaction terms |
+| `GET` | `/api/user/health-profile` | Get health profile; returns `null` if not yet created |
+| `POST` | `/api/user/health-profile` | Upsert health profile (DOB, sex, weight, height, blood type, conditions, medications, allergies) |
+| `GET` | `/api/user/stats` | Returns `{ conversationCount, messageCount, memberSince }` |
+
+### `/api/ai`
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/ai/ask` | Stream an AI reply — accepts message history, model, file keys, health profile flag, web search flag |
+| `POST` | `/api/ai/get-chat-title` | Generate a short conversation title from the first message |
+| `POST` | `/api/ai/conversations` | Create a new conversation row |
+| `GET` | `/api/ai/conversations` | List all conversations `{ id, title, updated_at }` ordered by most recent |
+| `GET` | `/api/ai/conversations/:id` | Get all messages (with attached files) for a conversation |
+| `POST` | `/api/ai/conversations/:id/title` | Update the title of a conversation |
+| `DELETE` | `/api/ai/conversations/:id` | Delete a conversation and its messages |
+
+### `/api/storage`
+
+| Method | Path | Description |
+|---|---|---|
+| `PUT` | `/api/storage/upload` | Redact file via python-server then upload to MinIO (up to 50 MB; PDF, images, plain text supported) |
+| `GET` | `/api/storage/list/:userId` | List all S3 objects under a user's prefix |
+| `GET` | `/api/storage/get?key=` | Get a pre-signed download URL for a file key |
+| `DELETE` | `/api/storage/delete/:key` | Delete a file from MinIO |
+| `POST` | `/api/storage/folder` | Create an empty folder in MinIO |
+| `POST` | `/api/storage/move` | Move a file (copy to new key, delete original) |
+
+### `/api/db-schema`
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/db-schema` | Returns full live schema: tables, columns (PK/FK/unique flags), foreign keys (with ON DELETE/UPDATE actions), indexes, and check constraints |
 
 ## Environment
 
