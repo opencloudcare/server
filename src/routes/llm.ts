@@ -23,6 +23,12 @@ router.post("/ask", async (req, res) => {
   const {contents, model = "gemma-4-31b-it", conversationId, files} = req.body;
   console.log(`${LOG} /ask | user: ${session.user.id} | model: ${model} | conv: ${conversationId} | files: ${files?.length ?? 0} | web_search: ${!!req.body.searchWeb}`);
 
+  const profileRes = await db.query(
+    "SELECT date_of_birth, sex, weight_kg, height_cm, blood_type, conditions, medications, allergies FROM health_profile WHERE user_id = $1",
+    [session.user.id]
+  ).catch(() => ({ rows: [] }))
+  const healthProfile = profileRes.rows[0] ?? null
+
   const fileList: {mimeType: string, data: string}[] = []
 
   try {
@@ -46,7 +52,7 @@ router.post("/ask", async (req, res) => {
     }
     let output = "" // buffer for an output stream
     const start = Date.now();
-    const stream = await askModel(req.body.contents, model, req.body.searchWeb, fileList)
+    const stream = await askModel(req.body.contents, model, req.body.searchWeb, fileList, healthProfile)
     for await (const chunk of stream) {
       res.write(chunk.text ?? "")
       output += chunk.text ?? ""
