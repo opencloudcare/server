@@ -18,21 +18,29 @@ const embedQuery = async (text: string): Promise<number[]> => {
 };
 
 export const searchWeb = async (searchQuery: string, liveSearch = false): Promise<string | null> => {
-  const embedding = await embedQuery(searchQuery);
-  const embeddingLiteral = `[${embedding.join(",")}]`;
+  let embedding: number[] | null = null;
+  try {
+    embedding = await embedQuery(searchQuery);
+  } catch (err) {
+    console.error("Embedding failed, skipping cache lookup:", err);
+  }
 
-  const cached = await db.query(
-    `SELECT results, 1 - (embedding <=> $1::vector) AS similarity
-     FROM web_search
-     WHERE 1 - (embedding <=> $1::vector) > $2
-     ORDER BY embedding <=> $1::vector
-     LIMIT 1`,
-    [embeddingLiteral, SIMILARITY_THRESHOLD]
-  );
+  if (embedding) {
+    const embeddingLiteral = `[${embedding.join(",")}]`;
 
-  if (cached.rows.length > 0) {
-    console.log("WEB SEARCH CACHE HIT:", searchQuery, "similarity:", cached.rows[0].similarity);
-    return cached.rows[0].results;
+    const cached = await db.query(
+      `SELECT results, 1 - (embedding <=> $1::vector) AS similarity
+       FROM web_search
+       WHERE 1 - (embedding <=> $1::vector) > $2
+       ORDER BY embedding <=> $1::vector
+       LIMIT 1`,
+      [embeddingLiteral, SIMILARITY_THRESHOLD]
+    );
+
+    if (cached.rows.length > 0) {
+      console.log("WEB SEARCH CACHE HIT:", searchQuery, "similarity:", cached.rows[0].similarity);
+      return cached.rows[0].results;
+    }
   }
 
   if (!liveSearch) return null;
@@ -42,10 +50,13 @@ export const searchWeb = async (searchQuery: string, liveSearch = false): Promis
     .map((r: any) => `**${r.title}**\n${r.content}\nSource: ${r.url}`)
     .join("\n\n---\n\n");
 
-  await db.query(
-    "INSERT INTO web_search (query, results, embedding) VALUES ($1, $2, $3::vector)",
-    [searchQuery, searchContext, embeddingLiteral]
-  );
+  if (embedding) {
+    const embeddingLiteral = `[${embedding.join(",")}]`;
+    await db.query(
+      "INSERT INTO web_search (query, results, embedding) VALUES ($1, $2, $3::vector)",
+      [searchQuery, searchContext, embeddingLiteral]
+    );
+  }
 
   console.log("WEB SEARCH CACHE MISS:", searchQuery);
   return searchContext;

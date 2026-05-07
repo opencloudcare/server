@@ -82,7 +82,7 @@ CREATE INDEX ON message(conversation_id);
 CREATE INDEX ON conversation(user_id);
 
 CREATE TABLE message_file (
-                              message_id text NOT NULL REFERENCES message (id),
+                              message_id text NOT NULL REFERENCES message (id) ON DELETE CASCADE,
                               file_key   text NOT NULL,
                               file_name  text NOT NULL,
                               file_type  text NOT NULL,
