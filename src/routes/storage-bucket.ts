@@ -1,6 +1,8 @@
 import express, {Router} from "express";
 import {
   checkForExistingFile,
+  copyFile,
+  createFolder,
   deleteFile,
   getFiles,
   getUploadUrl,
@@ -148,6 +150,51 @@ router.delete("/delete/:key", async (req, res) => {
     res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
   }
 
+})
+
+router.post("/folder", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {key} = req.body as {key?: string}
+  if (!key) {
+    res.status(400).json({message: "key is required"})
+    return
+  }
+  console.log(`${LOG} /folder | user: ${session.user.id} | key: ${key}`)
+  try {
+    await createFolder(key)
+    console.log(`${LOG} /folder | success | key: ${key}`)
+    res.status(200).json({message: "Folder created"})
+  } catch (error) {
+    console.error(`${LOG} /folder | error | key: ${key}`, error)
+    res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
+  }
+})
+
+router.post("/move", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {sourceKey, destKey} = req.body as {sourceKey?: string, destKey?: string}
+  if (!sourceKey || !destKey) {
+    res.status(400).json({message: "sourceKey and destKey are required"})
+    return
+  }
+  console.log(`${LOG} /move | user: ${session.user.id} | ${sourceKey} -> ${destKey}`)
+  try {
+    await copyFile(sourceKey, destKey)
+    await deleteFile(sourceKey)
+    console.log(`${LOG} /move | success | ${sourceKey} -> ${destKey}`)
+    res.status(200).json({message: "File moved"})
+  } catch (error) {
+    console.error(`${LOG} /move | error | ${sourceKey} -> ${destKey}`, error)
+    res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
+  }
 })
 
 export default router;
