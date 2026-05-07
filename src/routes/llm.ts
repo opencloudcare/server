@@ -164,6 +164,22 @@ router.post("/conversations/:id/title", async (req, res) => {
   }
 })
 
+router.delete("/conversations/:id", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)});
+  if (!session) { res.status(401).send("User not authenticated"); return; }
+  const {id} = req.params;
+  console.log(`${LOG} /conversations/:id DELETE | user: ${session.user.id} | conv: ${id}`);
+  try {
+    const result = await db.query("DELETE FROM conversation WHERE id = $1 AND user_id = $2", [id, session.user.id]);
+    if (result.rowCount === 0) { res.status(404).send("Conversation not found"); return; }
+    console.log(`${LOG} /conversations/:id DELETE | deleted | conv: ${id}`);
+    res.status(200).send("ok");
+  } catch (error) {
+    console.error(`${LOG} /conversations/:id DELETE | error | conv: ${id}`, error);
+    res.status(500).send("Error deleting conversation");
+  }
+})
+
 // Endpoint to get all the users conversations
 router.get("/conversations", async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)}); // check for session
