@@ -1,6 +1,8 @@
 import express, {Router} from "express";
 import {
   checkForExistingFile,
+  copyFile,
+  createFolder,
   deleteFile,
   getFiles,
   getUploadUrl,
@@ -13,6 +15,7 @@ import {auth} from "../utils/auth";
 import {fromNodeHeaders} from "better-auth/node";
 
 const router = Router();
+const LOG = "\x1b[33m[Storage]\x1b[0m";
 
 router.put("/upload", express.raw({
   type: [
@@ -31,8 +34,8 @@ router.put("/upload", express.raw({
 }), async (req, res) => {
   const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
   if (!session) {
+    console.warn(`${LOG} /upload | unauthorized request`)
     res.status(401).send("User not authenticated")
-    console.error("Unauthorized")
     return
   }
 
@@ -42,13 +45,18 @@ router.put("/upload", express.raw({
   const type = req.headers['content-type']
 
   if (!key || !file || !type) {
+    console.error(`${LOG} /upload | missing parameters | key: ${!!key} | file: ${!!file} | type: ${!!type}`)
     res.status(400).send("Key and file are required")
-    console.error("Missing parameters")
     return
   }
+
+  const sizeKB = (file.length / 1024).toFixed(1);
+  console.log(`${LOG} /upload | user: ${session.user.id} | key: ${key} | type: ${type} | size: ${sizeKB}KB`);
+
   // check if the file with the same name already exist
   let existingFile = await checkForExistingFile(key);
   if (existingFile) {
+    const originalKey = key;
     let i = 1;
 
     // 1. Split the path from the filename
@@ -66,26 +74,30 @@ router.put("/upload", express.raw({
       key = `${path}${baseName}(${i})${ext}`;
       i++;
     } while (await checkForExistingFile(key))
+
+    console.log(`${LOG} /upload | duplicate detected, renamed "${originalKey}" -> "${key}"`);
   }
 
   try {
     const url = await getUploadUrl(key as string);
     const search_terms = await getHiddenData(session.user.id);
     if (search_terms.length === 0) {
-      console.error("No search terms found")
+      console.error(`${LOG} /upload | no redaction terms configured | user: ${session.user.id}`)
       res.status(500).json({message: "No personal information specified. Please enter the text you would like us to redact before uploading your file."})
       return
     }
-    const redactedFile = await redactFile(type, file, search_terms)
     if (!url) {
-      console.error("No upload URL")
+      console.error(`${LOG} /upload | failed to get presigned upload URL | key: ${key}`)
       res.status(500).json({message: "upload failure"})
       return
     }
+    console.log(`${LOG} /upload | redacting with ${search_terms.length} term(s) | key: ${key}`);
+    const redactedFile = await redactFile(type, file, search_terms)
     await axios.put(url, redactedFile, {headers: {'Content-Type': type}}) // upload into the bucket
+    console.log(`${LOG} /upload | success | key: ${key}`);
     res.status(200).json({message: "Upload successful"})
   } catch (error) {
-    console.error(error)
+    console.error(`${LOG} /upload | error | key: ${key}`, error)
     res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
   }
 })
@@ -95,10 +107,12 @@ router.get("/list/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
     if (!userId) return res.status(400).json({message: "user id is required"})
+    console.log(`${LOG} /list | user: ${userId}`);
     const files = await listFiles(userId);
+    console.log(`${LOG} /list | returned ${files?.length ?? 0} file(s) | user: ${userId}`);
     res.status(200).json({message: `List files from ${process.env.S3_BUCKET_NAME}/${userId}`, data: files})
   } catch (error: any) {
-    console.error(error)
+    console.error(`${LOG} /list | error | user: ${req.params.userId}`, error)
     res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
   }
 })
@@ -111,10 +125,11 @@ router.get("/get", async (req, res) => {
       res.status(404).json({message: "No path or key provided"})
       return;
     }
+    console.log(`${LOG} /get | key: ${key}`);
     const files = await getFiles(key as string);
     res.status(200).json({message: `List files from ${process.env.S3_BUCKET_NAME} bucket - key: ${key}`, data: files})
   } catch (error: any) {
-    console.error(error)
+    console.error(`${LOG} /get | error | key: ${req.query.key}`, error)
     res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
   }
 })
@@ -125,14 +140,61 @@ router.delete("/delete/:key", async (req, res) => {
   if (!key) {
     res.status(400).json({message: "No key provided"})
   }
+  console.log(`${LOG} /delete | key: ${key}`);
   try {
     await deleteFile(key)
+    console.log(`${LOG} /delete | success | key: ${key}`);
     res.status(200).json({message: "File successfully deleted"})
   } catch (error) {
-    console.error(error)
+    console.error(`${LOG} /delete | error | key: ${key}`, error)
     res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
   }
 
+})
+
+router.post("/folder", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {key} = req.body as {key?: string}
+  if (!key) {
+    res.status(400).json({message: "key is required"})
+    return
+  }
+  console.log(`${LOG} /folder | user: ${session.user.id} | key: ${key}`)
+  try {
+    await createFolder(key)
+    console.log(`${LOG} /folder | success | key: ${key}`)
+    res.status(200).json({message: "Folder created"})
+  } catch (error) {
+    console.error(`${LOG} /folder | error | key: ${key}`, error)
+    res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
+  }
+})
+
+router.post("/move", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) {
+    res.status(401).send("User not authenticated")
+    return
+  }
+  const {sourceKey, destKey} = req.body as {sourceKey?: string, destKey?: string}
+  if (!sourceKey || !destKey) {
+    res.status(400).json({message: "sourceKey and destKey are required"})
+    return
+  }
+  console.log(`${LOG} /move | user: ${session.user.id} | ${sourceKey} -> ${destKey}`)
+  try {
+    await copyFile(sourceKey, destKey)
+    await deleteFile(sourceKey)
+    console.log(`${LOG} /move | success | ${sourceKey} -> ${destKey}`)
+    res.status(200).json({message: "File moved"})
+  } catch (error) {
+    console.error(`${LOG} /move | error | ${sourceKey} -> ${destKey}`, error)
+    res.status(500).json({message: error instanceof Error ? error.message : "Internal Server Error"})
+  }
 })
 
 export default router;

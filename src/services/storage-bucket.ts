@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand, HeadObjectCommand,
@@ -75,6 +76,19 @@ export const checkForExistingFile = async (key: any) : Promise<boolean> => {
 export const deleteFile = async (key: string) => {
   const command = new DeleteObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: key})
   return await s3.send(command);
+}
+
+export const createFolder = async (key: string) => {
+  const folderKey = key.endsWith('/') ? key : `${key}/`
+  return await s3.send(new PutObjectCommand({Bucket: process.env.S3_BUCKET_NAME, Key: folderKey, Body: ''}))
+}
+
+export const copyFile = async (sourceKey: string, destKey: string) => {
+  return await s3.send(new CopyObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    CopySource: `${process.env.S3_BUCKET_NAME}/${sourceKey}`,
+    Key: destKey,
+  }))
 }
 
 export const deleteUserFolder = async (userId: string) => {
