@@ -168,7 +168,7 @@ router.get("/conversations", async (req, res) => {
   console.log(`${LOG} /conversations GET | user: ${session.user.id}`);
 
   try {
-    const data = await db.query("SELECT id, title FROM conversation WHERE user_id = $1", [session.user.id]);
+    const data = await db.query("SELECT id, title, updated_at FROM conversation WHERE user_id = $1 ORDER BY updated_at DESC", [session.user.id]);
     console.log(`${LOG} /conversations GET | returned ${data.rows.length} conversations | user: ${session.user.id}`);
     res.status(200).send({data: data.rows});
   } catch (error) {

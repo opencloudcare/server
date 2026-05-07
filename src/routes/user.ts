@@ -139,5 +139,87 @@ router.post("/hidden-data", async (req, res) => {
   }
 })
 
+router.get("/health-profile", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) { res.status(401).send("User not authenticated"); return }
+  console.log(`${LOG} /health-profile GET | user: ${session.user.id}`);
+  try {
+    const result = await db.query(
+      "SELECT date_of_birth, sex, weight_kg, height_cm, blood_type, conditions, medications, allergies FROM health_profile WHERE user_id = $1",
+      [session.user.id]
+    )
+    res.status(200).json({ data: result.rows[0] ?? null })
+  } catch (error) {
+    console.error(`${LOG} /health-profile GET | error | user: ${session.user.id}`, error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
+router.post("/health-profile", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) { res.status(401).send("User not authenticated"); return }
+  const { date_of_birth, sex, weight_kg, height_cm, blood_type, conditions, medications, allergies } = req.body
+  console.log(`${LOG} /health-profile POST | user: ${session.user.id}`);
+  try {
+    const result = await db.query(
+      `INSERT INTO health_profile (user_id, date_of_birth, sex, weight_kg, height_cm, blood_type, conditions, medications, allergies)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (user_id) DO UPDATE SET
+         date_of_birth = EXCLUDED.date_of_birth,
+         sex           = EXCLUDED.sex,
+         weight_kg     = EXCLUDED.weight_kg,
+         height_cm     = EXCLUDED.height_cm,
+         blood_type    = EXCLUDED.blood_type,
+         conditions    = EXCLUDED.conditions,
+         medications   = EXCLUDED.medications,
+         allergies     = EXCLUDED.allergies,
+         updated_at    = now()
+       RETURNING date_of_birth, sex, weight_kg, height_cm, blood_type, conditions, medications, allergies`,
+      [
+        session.user.id,
+        date_of_birth  || null,
+        sex            || null,
+        weight_kg      || null,
+        height_cm      || null,
+        blood_type     || null,
+        conditions     ?? '',
+        medications    ?? '',
+        allergies      ?? '',
+      ]
+    )
+    res.status(200).json({ data: result.rows[0] })
+  } catch (error) {
+    console.error(`${LOG} /health-profile POST | error | user: ${session.user.id}`, error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
+router.get("/stats", async (req, res) => {
+  const session = await auth.api.getSession({headers: fromNodeHeaders(req.headers)})
+  if (!session) { res.status(401).send("User not authenticated"); return }
+  console.log(`${LOG} /stats GET | user: ${session.user.id}`);
+  try {
+    const [convRes, msgRes, userRes] = await Promise.all([
+      db.query("SELECT COUNT(*)::int AS count FROM conversation WHERE user_id = $1", [session.user.id]),
+      db.query(
+        `SELECT COUNT(*)::int AS count FROM message m
+         JOIN conversation c ON c.id = m.conversation_id
+         WHERE c.user_id = $1 AND m.role = 'user'`,
+        [session.user.id]
+      ),
+      db.query('SELECT "createdAt" FROM "user" WHERE id = $1', [session.user.id]),
+    ])
+
+    res.status(200).json({
+      conversationCount: convRes.rows[0].count,
+      messageCount:      msgRes.rows[0].count,
+      memberSince:       userRes.rows[0]?.createdAt ?? null,
+    })
+  } catch (error) {
+    console.error(`${LOG} /stats GET | error | user: ${session.user.id}`, error)
+    res.status(500).send(error instanceof Error ? error.message : "Internal Server Error")
+  }
+})
+
 
 export default router;

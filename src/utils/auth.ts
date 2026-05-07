@@ -47,6 +47,8 @@ export const auth = betterAuth({
                     console.log("[CREATE] user preferences ✅")
                     await db.query("INSERT INTO hidden_data (user_id) VALUES ($1)", [user.id]) // add empty hidden data row
                     console.log("[INITIALIZE] hidden data ✅")
+                    await db.query("INSERT INTO health_profile (user_id) VALUES ($1)", [user.id])
+                    console.log("[CREATE] health profile ✅")
                 },
             }
         }
